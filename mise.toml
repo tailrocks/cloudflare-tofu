@@ -9,10 +9,15 @@ run = "tofu init -input=false"
 
 [tasks.check]
 run = """
+cargo fmt -- --check
+cargo check --bin export-dns
 tofu fmt -check -recursive
 tofu init -input=false
 tofu validate
 """
+
+[tasks.export-dns]
+run = "op run --env-file 1password.env -- cargo run --bin export-dns"
 
 [tasks.plan]
 run = "op run --env-file 1password.env -- tofu plan -out=termrock.tfplan"
