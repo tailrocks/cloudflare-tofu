@@ -1,0 +1,21 @@
+[settings]
+lockfile = true
+
+[tools]
+opentofu = "1.12.5"
+
+[tasks.init]
+run = "tofu init -input=false"
+
+[tasks.check]
+run = """
+tofu fmt -check -recursive
+tofu init -input=false
+tofu validate
+"""
+
+[tasks.plan]
+run = "op run --env-file 1password.env -- tofu plan -out=termrock.tfplan"
+
+[tasks.apply]
+run = "op run --env-file 1password.env -- tofu apply termrock.tfplan"
