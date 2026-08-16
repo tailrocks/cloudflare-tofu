@@ -36,6 +36,11 @@ import {
 }
 
 import {
+  to = cloudflare_dns_record.cname_skills_tailrocks_com_226d9c84
+  id = "d959581ac83ee5b00ae4b74fa0eb3f6b/226d9c84f970e1e02b398b6219d2f05d"
+}
+
+import {
   to = cloudflare_dns_record.a_tailrocks_com_e17d48c3
   id = "d959581ac83ee5b00ae4b74fa0eb3f6b/e17d48c3a4001e377be9261458afd74d"
 }

@@ -97,6 +97,22 @@ resource "cloudflare_dns_record" "cname_jackin_tailrocks_com_679dcbf4" {
   }
 }
 
+resource "cloudflare_dns_record" "cname_skills_tailrocks_com_226d9c84" {
+  zone_id = local.zone_id
+  name    = "skills.tailrocks.com"
+  type    = "CNAME"
+  ttl     = 1
+  content = "tailrocks.github.io"
+  proxied = false
+  settings = {
+    "flatten_cname" : false
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 resource "cloudflare_dns_record" "a_tailrocks_com_e17d48c3" {
   zone_id = local.zone_id
   name    = "tailrocks.com"

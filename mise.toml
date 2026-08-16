@@ -17,7 +17,12 @@ tofu validate
 """
 
 [tasks.export-dns]
-run = "op run --env-file 1password.env -- cargo run --bin export-dns"
+# The exporter writes `settings` blocks as JSON, which `tofu fmt -check` in the
+# check task rejects. Normalize here so a fresh export is always check-clean.
+run = """
+op run --env-file 1password.env -- cargo run --bin export-dns
+tofu fmt -recursive
+"""
 
 [tasks.plan]
 run = "op run --env-file 1password.env -- tofu plan -out=termrock.tfplan"
