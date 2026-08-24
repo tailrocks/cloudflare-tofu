@@ -3,6 +3,7 @@ lockfile = true
 
 [tools]
 opentofu = "1.12.5"
+rust = "1.97.1"
 
 [tasks.init]
 run = "tofu init -input=false"
