@@ -1,0 +1,46 @@
+name: OpenTofu
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      lanes:
+        description: velnor (default) | github | both
+        type: choice
+        default: velnor
+        options: [velnor, github, both]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tofu-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: tofu-validate (${{ matrix.config.lane }})
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # Fleet policy: post-merge push is rejected fleet-wide
+        # (merged_push_occupancy), so push always runs on the GitHub lane.
+        # pull_request / schedule / workflow_dispatch default to Velnor.
+        config: ${{ fromJSON((github.event_name == 'push') && '[{"lane":"GitHub","runner":"ubuntu-26.04","writer":true}]' || (github.event_name == 'workflow_dispatch' && inputs.lanes == 'both') && '[{"lane":"Velnor","runner":["self-hosted","velnor-target-mvp"],"writer":true},{"lane":"GitHub","runner":"ubuntu-26.04","writer":false}]' || (github.event_name == 'workflow_dispatch' && inputs.lanes == 'github') && '[{"lane":"GitHub","runner":"ubuntu-26.04","writer":true}]' || '[{"lane":"Velnor","runner":["self-hosted","velnor-target-mvp"],"writer":true}]') }}
+    runs-on: ${{ matrix.config.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4.2.4
+        with:
+          version: "2026.8.2"
+          install_args: opentofu rust
+          cache_save: ${{ matrix.config.writer }}
+      - run: tofu fmt -check -recursive
+      - run: tofu init -backend=false -input=false
+      - run: tofu validate
+      - run: cargo check --bin export-dns --locked
