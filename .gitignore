@@ -13,3 +13,6 @@ crash.log
 crash.*.log
 .DS_Store
 target/
+
+# Local 1Password secret references (op://) — never commit
+1password.env
