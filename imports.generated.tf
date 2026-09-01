@@ -16,6 +16,11 @@ import {
 }
 
 import {
+  to = cloudflare_dns_record.txt_github_pages_challenge_tailrocks_tailrocks_com_cbf39016
+  id = "d959581ac83ee5b00ae4b74fa0eb3f6b/cbf39016bcef7fadbc3b228e34d1493e"
+}
+
+import {
   to = cloudflare_dns_record.txt_github_pages_challenge_tailrocks_velnor_apt_tailrocks_com_9fa43d72
   id = "d959581ac83ee5b00ae4b74fa0eb3f6b/9fa43d72f16e4dc498b3b18cbea4fe3c"
 }

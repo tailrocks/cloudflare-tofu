@@ -39,6 +39,19 @@ resource "cloudflare_dns_record" "txt_github_pages_challenge_tailrocks_holla_apt
   }
 }
 
+resource "cloudflare_dns_record" "txt_github_pages_challenge_tailrocks_tailrocks_com_cbf39016" {
+  zone_id = local.zone_id
+  name    = "_github-pages-challenge-tailrocks.tailrocks.com"
+  type    = "TXT"
+  ttl     = 1
+  content = "\"3634ca6138\""
+  proxied = false
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 resource "cloudflare_dns_record" "txt_github_pages_challenge_tailrocks_velnor_apt_tailrocks_com_9fa43d72" {
   zone_id = local.zone_id
   name    = "_github-pages-challenge-tailrocks.velnor-apt.tailrocks.com"
