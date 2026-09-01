@@ -86,6 +86,11 @@ import {
 }
 
 import {
+  to = cloudflare_dns_record.cname_velnor_tailrocks_com_403283ad
+  id = "d959581ac83ee5b00ae4b74fa0eb3f6b/403283ad0b28dff5bd47c73a106da202"
+}
+
+import {
   to = cloudflare_dns_record.cname_www_tailrocks_com_253c5245
   id = "d959581ac83ee5b00ae4b74fa0eb3f6b/253c524538a5d36ccb1185d5e16af617"
 }

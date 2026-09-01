@@ -239,6 +239,22 @@ resource "cloudflare_dns_record" "cname_velnor_apt_tailrocks_com_3290a077" {
   }
 }
 
+resource "cloudflare_dns_record" "cname_velnor_tailrocks_com_403283ad" {
+  zone_id = local.zone_id
+  name    = "velnor.tailrocks.com"
+  type    = "CNAME"
+  ttl     = 1
+  content = "tailrocks.github.io"
+  proxied = false
+  settings = {
+    "flatten_cname" : false
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 resource "cloudflare_dns_record" "cname_www_tailrocks_com_253c5245" {
   zone_id = local.zone_id
   name    = "www.tailrocks.com"
