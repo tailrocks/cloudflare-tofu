@@ -1,7 +1,7 @@
 schema = 1
 
 [generator]
-revision = "b9c3156cdb88e63c11b9e595a3e694b02238c09a"
+revision = "a83de766d9f54f553e9e77b01330135cdd9108d2"
 repository = "tailrocks/cloudflare-tofu"
 
 [workflow]
