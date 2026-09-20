@@ -9,12 +9,10 @@ on:
       runner:
         description: Execution backend
         required: false
-        default: both
+        default: github
         type: choice
         options:
-          - velnor
           - github
-          - both
       scope:
         description: Verification scope
         required: true
@@ -57,12 +55,13 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Set up Velnor workflow runtime
+        id: runtime
         if: ${{ runner.environment == 'github-hosted' }}
-        uses: tailrocks/velnor/.github/actions/setup-velnor-workflow@b9c3156cdb88e63c11b9e595a3e694b02238c09a
+        uses: tailrocks/velnor/.github/actions/setup-velnor-workflow@4fa7a3a85f141a6bb95bc9bdf0eef9e3ddde165d
         with:
-          rev: b9c3156cdb88e63c11b9e595a3e694b02238c09a
+          rev: 4fa7a3a85f141a6bb95bc9bdf0eef9e3ddde165d
       - name: Set trusted workflow policy revision
-        run: echo "VELNOR_WORKFLOW_POLICY_REVISION=b9c3156cdb88e63c11b9e595a3e694b02238c09a" >> "$GITHUB_ENV"
+        run: echo "VELNOR_WORKFLOW_POLICY_REVISION=4fa7a3a85f141a6bb95bc9bdf0eef9e3ddde165d" >> "$GITHUB_ENV"
       - name: Select affected units
         id: plan
         env:
@@ -70,7 +69,6 @@ jobs:
           CI_SCOPE_OVERRIDE: ${{ github.event.inputs.scope || '' }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.inputs.base_sha || github.event.before || 'refs/heads/main' }}
           HEAD_SHA: ${{ github.sha }}
-          VELNOR_LANES: ${{ github.event.inputs.runner || 'both' }}
         run: |
           set -euo pipefail
           if [[ -z "${CI_SCOPE_OVERRIDE:-}" ]]; then unset CI_SCOPE_OVERRIDE; fi
@@ -79,7 +77,7 @@ jobs:
       - name: Prepare Velnor workflow runtime
         shell: bash
         env:
-          EXPECTED_REVISION: b9c3156cdb88e63c11b9e595a3e694b02238c09a
+          EXPECTED_REVISION: 4fa7a3a85f141a6bb95bc9bdf0eef9e3ddde165d
         run: |
           set -euo pipefail
           stage="$RUNNER_TEMP/velnor-workflow-runtime"
@@ -91,28 +89,20 @@ jobs:
           policy_src="${VELNOR_WORKFLOW_PINNED_BINARY:-$src}"
           install -m 0755 "$policy_src" "$stage/velnor-workflow-policy"
           policy_revision="$("$stage/velnor-workflow-policy" --revision)"
-          [[ "$policy_revision" == "$EXPECTED_REVISION" ]] || { echo "::error::policy runtime reports revision $policy_revision, expected $EXPECTED_REVISION" >&2; exit 1; }
+          policy_closure="$("$stage/velnor-workflow-policy" --closure)"
+          [[ "$policy_closure" == "${{ steps.runtime.outputs.closure }}" ]] || { echo "::error::policy runtime reports closure $policy_closure, expected ${{ steps.runtime.outputs.closure }}" >&2; exit 1; }
           policy_digest="$(sha256sum "$stage/velnor-workflow-policy" | awk '{print $1}')"
-          jq -n --arg repository "$GITHUB_REPOSITORY" --arg revision "$EXPECTED_REVISION" --arg head_branch "${{ github.ref_name }}" --arg platform "${{ runner.os }}-${{ runner.arch }}" --arg run_id "$GITHUB_RUN_ID" --arg job_id "${{ github.job }}" --arg binary_sha256 "$digest" --arg policy_revision "$policy_revision" --arg policy_binary_sha256 "$policy_digest" '{repository: $repository, revision: $revision, head_branch: $head_branch, platform: $platform, run_id: $run_id, job_id: $job_id, binary_sha256: $binary_sha256, policy_revision: $policy_revision, policy_binary_sha256: $policy_binary_sha256}' > "$stage/manifest.json"
+          jq -n --arg repository "$GITHUB_REPOSITORY" --arg revision "$EXPECTED_REVISION" --arg closure "${{ steps.runtime.outputs.closure }}" --arg head_branch "${{ github.ref_name }}" --arg platform "${{ runner.os }}-${{ runner.arch }}" --arg run_id "$GITHUB_RUN_ID" --arg job_id "${{ github.job }}" --arg binary_sha256 "$digest" --arg policy_revision "$policy_revision" --arg policy_closure "$policy_closure" --arg policy_binary_sha256 "$policy_digest" '{repository: $repository, revision: $revision, closure: $closure, head_branch: $head_branch, platform: $platform, run_id: $run_id, job_id: $job_id, binary_sha256: $binary_sha256, policy_revision: $policy_revision, policy_closure: $policy_closure, policy_binary_sha256: $policy_binary_sha256}' > "$stage/manifest.json"
       - name: Publish Velnor workflow runtime
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: velnor-workflow-runtime-b9c3156cdb88e63c11b9e595a3e694b02238c09a-${{ runner.os }}-${{ runner.arch }}
+          name: velnor-workflow-runtime-4fa7a3a85f141a6bb95bc9bdf0eef9e3ddde165d-${{ runner.os }}-${{ runner.arch }}
           path: ${{ runner.temp }}/velnor-workflow-runtime
           if-no-files-found: error
           retention-days: 7
-  velnor-lane-admission:
-    name: "Control / Velnor admission"
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - name: Velnor lane omitted for fork
-        run: |
-          echo '::notice::Velnor lane omitted for fork pull request; validating GitHub lane only.'
   github-opentofu:
     name: "OpenTofu · OpenTofu"
-    if: ${{ always() && needs.plan.result == 'success' && contains(format(',{0},', needs.plan.outputs.units), ',opentofu,') }}
+    if: ${{ always() && needs.plan.result == 'success' && contains(format(',{0},', needs.plan.outputs.units), ',opentofu,') && (github.event_name == 'pull_request' || (github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule')) || (github.event_name == 'workflow_dispatch' && (github.event.inputs.runner == 'github' || github.event.inputs.runner == 'both' || github.event.inputs.runner == ''))) }}
     needs: [plan]
     uses: ./.github/workflows/ci-unit-opentofu.yml
     with:
@@ -125,36 +115,10 @@ jobs:
       head_sha: ${{ needs.plan.outputs.head_sha }}
       cache_paths: "~/.terraform.d/plugin-cache"
       cache_key_files: "**/.terraform.lock.hcl"
-  velnor-opentofu:
-    name: "OpenTofu · OpenTofu"
-    if: ${{ always() && needs.plan.result == 'success' && contains(format(',{0},', needs.plan.outputs.units), ',opentofu,') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
-    needs: [plan]
-    uses: ./.github/workflows/ci-unit-opentofu.yml
-    with:
-      unit: opentofu
-      lane: velnor
-      selected_units: ${{ needs.plan.outputs.units }}
-      scope: ${{ needs.plan.outputs.scope }}
-      full_units: ${{ needs.plan.outputs.full_units }}
-      base_sha: ${{ needs.plan.outputs.base_sha }}
-      head_sha: ${{ needs.plan.outputs.head_sha }}
-      host_warm_layers: cargo
-  prepare-cargo:
-    name: "Control / Prepare Cargo"
-    if: ${{ always() && needs.plan.result == 'success' && contains(format(',{0},', needs.plan.outputs.units), ',rust-cloudflare-tofu-tools,') }}
-    needs: [plan]
-    uses: ./.github/workflows/ci-unit-rust.yml
-    with:
-      unit: rust-cloudflare-tofu-tools
-      lane: control
-      selected_units: ${{ needs.plan.outputs.units }}
-      scope: ${{ needs.plan.outputs.scope }}
-      full_units: ${{ needs.plan.outputs.full_units }}
-      base_sha: ${{ needs.plan.outputs.base_sha }}
-      head_sha: ${{ needs.plan.outputs.head_sha }}
+      unit_admission: github
   github-rust-cloudflare-tofu-tools:
     name: "Rust · cloudflare-tofu-tools"
-    if: ${{ always() && needs.plan.result == 'success' && contains(format(',{0},', needs.plan.outputs.units), ',rust-cloudflare-tofu-tools,') }}
+    if: ${{ always() && needs.plan.result == 'success' && contains(format(',{0},', needs.plan.outputs.units), ',rust-cloudflare-tofu-tools,') && (github.event_name == 'pull_request' || (github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule')) || (github.event_name == 'workflow_dispatch' && (github.event.inputs.runner == 'github' || github.event.inputs.runner == 'both' || github.event.inputs.runner == ''))) }}
     needs: [plan]
     uses: ./.github/workflows/ci-unit-rust.yml
     with:
@@ -165,7 +129,8 @@ jobs:
       full_units: ${{ needs.plan.outputs.full_units }}
       base_sha: ${{ needs.plan.outputs.base_sha }}
       head_sha: ${{ needs.plan.outputs.head_sha }}
-      mbx_compat: "9effda3590ac"
+      mbx_enabled: true
+      mbx_compat: "6bbff2812769"
       mbx_dependency_files: |
         .cargo/**
         Cargo.lock
@@ -188,25 +153,11 @@ jobs:
         rust-toolchain
       cargo_root: "."
       cargo_net_offline: true
-  velnor-rust-cloudflare-tofu-tools:
-    name: "Rust · cloudflare-tofu-tools"
-    if: ${{ always() && needs.plan.result == 'success' && (needs.prepare-cargo.result == 'success' || needs.prepare-cargo.result == 'skipped') && contains(format(',{0},', needs.plan.outputs.units), ',rust-cloudflare-tofu-tools,') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
-    needs: [plan, prepare-cargo]
-    uses: ./.github/workflows/ci-unit-rust.yml
-    with:
-      unit: rust-cloudflare-tofu-tools
-      lane: velnor
-      selected_units: ${{ needs.plan.outputs.units }}
-      scope: ${{ needs.plan.outputs.scope }}
-      full_units: ${{ needs.plan.outputs.full_units }}
-      base_sha: ${{ needs.plan.outputs.base_sha }}
-      head_sha: ${{ needs.plan.outputs.head_sha }}
-      cargo_net_offline: true
-      host_warm_layers: "rustup,mold,mbx,cargo"
+      unit_admission: github
   ci-required:
     name: ci-required
     if: ${{ always() }}
-    needs: [plan, velnor-lane-admission, github-opentofu, velnor-opentofu, prepare-cargo, github-rust-cloudflare-tofu-tools, velnor-rust-cloudflare-tofu-tools]
+    needs: [plan, github-opentofu, github-rust-cloudflare-tofu-tools]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -214,7 +165,7 @@ jobs:
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
           SELECTED_UNITS: ${{ needs.plan.outputs.units }}
-          FORK_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+          LANE_ADMITTED_GITHUB: ${{ github.event_name == 'pull_request' || (github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule')) || (github.event_name == 'workflow_dispatch' && (github.event.inputs.runner == 'github' || github.event.inputs.runner == 'both' || github.event.inputs.runner == '')) }}
         shell: bash
         run: |
           set -euo pipefail
@@ -226,18 +177,20 @@ jobs:
             echo "required CI prerequisite plan did not pass: $result" >&2
             exit 1
           fi
-          result="$(result_for_job velnor-lane-admission)"
-          case "$result" in
-            success|skipped) ;;
-            *) echo "required CI prerequisite velnor-lane-admission did not pass: $result" >&2; exit 1 ;;
-          esac
           selected=",$SELECTED_UNITS,"
           if [[ "$selected" == *",opentofu,"* ]]; then
             result="$(result_for_job github-opentofu)"
-            case "$result" in
-              success) ;;
-              *) echo "selected CI job github-opentofu did not pass: $result" >&2; exit 1 ;;
-            esac
+            if [[ "$LANE_ADMITTED_GITHUB" == true ]]; then
+              case "$result" in
+                success) ;;
+                *) echo "selected CI job github-opentofu did not pass: $result" >&2; exit 1 ;;
+              esac
+            else
+              case "$result" in
+                skipped) ;;
+                *) echo "selected CI job github-opentofu ran outside its lane admission (LANE_ADMITTED_GITHUB=$LANE_ADMITTED_GITHUB): $result" >&2; exit 1 ;;
+              esac
+            fi
           else
             result="$(result_for_job github-opentofu)"
             case "$result" in
@@ -245,70 +198,24 @@ jobs:
               *) echo "unselected CI job github-opentofu failed unexpectedly: $result" >&2; exit 1 ;;
             esac
           fi
-          if [[ "$selected" == *",opentofu,"* ]]; then
-            result="$(result_for_job velnor-opentofu)"
-            if [[ "$FORK_PR" == true ]]; then
+          if [[ "$selected" == *",rust-cloudflare-tofu-tools,"* ]]; then
+            result="$(result_for_job github-rust-cloudflare-tofu-tools)"
+            if [[ "$LANE_ADMITTED_GITHUB" == true ]]; then
               case "$result" in
-                success|skipped) ;;
-                *) echo "selected CI job velnor-opentofu did not pass: $result" >&2; exit 1 ;;
+                success) ;;
+                *) echo "selected CI job github-rust-cloudflare-tofu-tools did not pass: $result" >&2; exit 1 ;;
               esac
             else
               case "$result" in
-                success) ;;
-                *) echo "selected CI job velnor-opentofu did not pass: $result" >&2; exit 1 ;;
+                skipped) ;;
+                *) echo "selected CI job github-rust-cloudflare-tofu-tools ran outside its lane admission (LANE_ADMITTED_GITHUB=$LANE_ADMITTED_GITHUB): $result" >&2; exit 1 ;;
               esac
             fi
-          else
-            result="$(result_for_job velnor-opentofu)"
-            case "$result" in
-              success|skipped) ;;
-              *) echo "unselected CI job velnor-opentofu failed unexpectedly: $result" >&2; exit 1 ;;
-            esac
-          fi
-          if [[ "$selected" == *",rust-cloudflare-tofu-tools,"* ]]; then
-            result="$(result_for_job prepare-cargo)"
-            if [[ "$result" != success ]]; then
-              echo "selected CI prerequisite prepare-cargo did not pass: $result" >&2
-              exit 1
-            fi
-          else
-            result="$(result_for_job prepare-cargo)"
-            case "$result" in
-              success|skipped) ;;
-              *) echo "unselected CI prerequisite prepare-cargo failed unexpectedly: $result" >&2; exit 1 ;;
-            esac
-          fi
-          if [[ "$selected" == *",rust-cloudflare-tofu-tools,"* ]]; then
-            result="$(result_for_job github-rust-cloudflare-tofu-tools)"
-            case "$result" in
-              success) ;;
-              *) echo "selected CI job github-rust-cloudflare-tofu-tools did not pass: $result" >&2; exit 1 ;;
-            esac
           else
             result="$(result_for_job github-rust-cloudflare-tofu-tools)"
             case "$result" in
               success|skipped) ;;
               *) echo "unselected CI job github-rust-cloudflare-tofu-tools failed unexpectedly: $result" >&2; exit 1 ;;
-            esac
-          fi
-          if [[ "$selected" == *",rust-cloudflare-tofu-tools,"* ]]; then
-            result="$(result_for_job velnor-rust-cloudflare-tofu-tools)"
-            if [[ "$FORK_PR" == true ]]; then
-              case "$result" in
-                success|skipped) ;;
-                *) echo "selected CI job velnor-rust-cloudflare-tofu-tools did not pass: $result" >&2; exit 1 ;;
-              esac
-            else
-              case "$result" in
-                success) ;;
-                *) echo "selected CI job velnor-rust-cloudflare-tofu-tools did not pass: $result" >&2; exit 1 ;;
-              esac
-            fi
-          else
-            result="$(result_for_job velnor-rust-cloudflare-tofu-tools)"
-            case "$result" in
-              success|skipped) ;;
-              *) echo "unselected CI job velnor-rust-cloudflare-tofu-tools failed unexpectedly: $result" >&2; exit 1 ;;
             esac
           fi
   required:
