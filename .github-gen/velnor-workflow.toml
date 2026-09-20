@@ -5,7 +5,7 @@ revision = "4fa7a3a85f141a6bb95bc9bdf0eef9e3ddde165d"
 repository = "tailrocks/cloudflare-tofu"
 
 [workflow]
-runners = "both"
+runners = "github"
 automatic_lanes = "github"
 default_dispatch_runner = "github"
 github_runner = "ubuntu-24.04"
