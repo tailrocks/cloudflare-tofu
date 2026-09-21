@@ -1,17 +1,17 @@
-schema = 1
+schema = 2
 
 [generator]
-revision = "4fa7a3a85f141a6bb95bc9bdf0eef9e3ddde165d"
 repository = "tailrocks/cloudflare-tofu"
+revision = "4dec6b9ec28b0d51cb370fd8f5d5401c6186adf0"
 
 [workflow]
-runners = "github"
-automatic_lanes = "github"
-default_dispatch_runner = "github"
-github_runner = "ubuntu-24.04"
-velnor_labels = ["self-hosted", "velnor-target-mvp"]
+providers = ["velnor"]
+automatic_providers = ["velnor"]
 default_branch = "main"
 
+[workflow.selectors.velnor]
+runs_on = ["self-hosted", "velnor-target-mvp"]
+
 [policy]
-ruleset_required_status_checks = ["ci-required"]
+ruleset_required_status_checks = ["ci-required", "Policy"]
 ruleset_external_status_checks = ["DCO"]

@@ -25,8 +25,8 @@ concurrency:
 jobs:
   prune-pr-cache:
     name: Prune closed-PR cache
-    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.pull_request_number != '') }}
-    runs-on: ubuntu-24.04
+    if: ${{ (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.pull_request_number != '')) && (!(github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork || github.event.pull_request.user.type == 'Bot'))) }}
+    runs-on: [self-hosted, velnor-target-mvp]
     timeout-minutes: 15
     steps:
       - name: Delete merge-ref cache namespace
@@ -88,8 +88,8 @@ jobs:
           fi
   cache-budget:
     name: Cache retention
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-24.04
+    if: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+    runs-on: [self-hosted, velnor-target-mvp]
     timeout-minutes: 10
     permissions:
       contents: read
@@ -110,15 +110,6 @@ jobs:
             fi
           done
           echo "skip=false" >> "$GITHUB_OUTPUT"
-      - name: Set up Velnor workflow runtime
-        id: runtime
-        if: ${{ steps.retention-gate.outputs.skip != 'true' && runner.environment == 'github-hosted' }}
-        uses: tailrocks/velnor/.github/actions/setup-velnor-workflow@4fa7a3a85f141a6bb95bc9bdf0eef9e3ddde165d
-        with:
-          rev: 4fa7a3a85f141a6bb95bc9bdf0eef9e3ddde165d
-      - name: Set trusted workflow policy revision
-        if: steps.retention-gate.outputs.skip != 'true'
-        run: echo "VELNOR_WORKFLOW_POLICY_REVISION=4fa7a3a85f141a6bb95bc9bdf0eef9e3ddde165d" >> "$GITHUB_ENV"
       - name: Sweep closed-PR merge-ref caches
         if: steps.retention-gate.outputs.skip != 'true'
         env:

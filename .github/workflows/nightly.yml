@@ -7,13 +7,6 @@ on:
     - cron: '17 3 * * *'
   workflow_dispatch:
     inputs:
-      runner:
-        description: Execution backend
-        required: false
-        default: github
-        type: choice
-        options:
-          - github
       scope:
         description: Verification scope
         required: true
@@ -45,8 +38,8 @@ permissions:
 jobs:
   dispatch-ci-main:
     name: "Control / Dispatch ci-main"
-    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.simulate_failure }}
-    runs-on: ubuntu-24.04
+    if: ${{ (github.event_name != 'workflow_dispatch' || !inputs.simulate_failure) && (!(github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork || github.event.pull_request.user.type == 'Bot'))) }}
+    runs-on: [self-hosted, velnor-target-mvp]
     timeout-minutes: 5
     permissions:
       actions: write
@@ -57,7 +50,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           DEFAULT_BRANCH: main
-          DISPATCH_RUNNER: ${{ github.event.inputs.runner || 'github' }}
           DISPATCH_SCOPE: ${{ github.event.inputs.scope || 'full' }}
           DISPATCH_BASE_SHA: ${{ github.event.inputs.base_sha || format('refs/heads/{0}', github.event.repository.default_branch) }}
         shell: bash
@@ -66,13 +58,12 @@ jobs:
           gh workflow run ci-main.yml \
             -R "$GITHUB_REPOSITORY" \
             --ref "$DEFAULT_BRANCH" \
-            -f runner="$DISPATCH_RUNNER" \
             -f scope="$DISPATCH_SCOPE" \
             -f base_sha="$DISPATCH_BASE_SHA"
   nightly-red-to-signal:
     name: "Control / Nightly red-to-signal"
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.simulate_failure }}
-    runs-on: ubuntu-24.04
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.simulate_failure) && (!(github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork || github.event.pull_request.user.type == 'Bot'))) }}
+    runs-on: [self-hosted, velnor-target-mvp]
     timeout-minutes: 5
     steps:
       - name: Simulate nightly failure
@@ -83,9 +74,9 @@ jobs:
           exit 1
   nightly-alert:
     name: "Control / Nightly red-to-signal"
-    if: ${{ always() && needs.nightly-red-to-signal.result == 'failure' }}
+    if: ${{ (always() && needs.nightly-red-to-signal.result == 'failure') && (!(github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork || github.event.pull_request.user.type == 'Bot'))) }}
     needs: [nightly-red-to-signal]
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, velnor-target-mvp]
     permissions:
       contents: read
       issues: write
