@@ -53,7 +53,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          PINNED_REVISION: be61acbbbfb71db6b51337e547e39de049d4fc15
+          PINNED_REVISION: 4dec6b9ec28b0d51cb370fd8f5d5401c6186adf0
           CHECKOUT_PATH: ${{ github.workspace }}/policy-checkout
         run: |
           set -euo pipefail
@@ -106,7 +106,7 @@ jobs:
           WORKFLOW_ROOT: ${{ github.workspace }}/policy-checkout
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
-          VELNOR_WORKFLOW_POLICY_REVISION: be61acbbbfb71db6b51337e547e39de049d4fc15
+          VELNOR_WORKFLOW_POLICY_REVISION: 4dec6b9ec28b0d51cb370fd8f5d5401c6186adf0
         run: |
           set -euo pipefail
           velnor-workflow policy \

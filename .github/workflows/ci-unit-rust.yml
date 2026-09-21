@@ -408,7 +408,7 @@ jobs:
           fi
       - name: Report phase timings and cache outcomes
         if: always()
-        uses: tailrocks/velnor/.github/actions/report-velnor-ci-outcomes@be61acbbbfb71db6b51337e547e39de049d4fc15
+        uses: tailrocks/velnor/.github/actions/report-velnor-ci-outcomes@4dec6b9ec28b0d51cb370fd8f5d5401c6186adf0
         with:
           job_label: ${{ inputs.unit }}
           ci_lane: velnor

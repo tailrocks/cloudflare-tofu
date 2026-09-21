@@ -25,7 +25,7 @@ concurrency:
 jobs:
   prune-pr-cache:
     name: Prune closed-PR cache
-    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.pull_request_number != '') }}
+    if: ${{ (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.pull_request_number != '')) && (!(github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork || github.event.pull_request.user.type == 'Bot'))) }}
     runs-on: [self-hosted, velnor-target-mvp]
     timeout-minutes: 15
     steps:
